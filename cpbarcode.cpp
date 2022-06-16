@@ -7,17 +7,23 @@
 
 using namespace TextUtfEncoding;
 
-CPBarcode::CPBarcode() :m_stop(false), decoding(false) {
+CPBarcode::CPBarcode() :m_stop(false), decoding(false), decodeResult(DecodeStatus::NotFound) {
 
 }
 
 
 CPBarcode::~CPBarcode() {
+    qDebug()<<"~CPBarcode()";
     requestInterruption();
+    while(decoding) {
+        qDebug()<<"wait decoding finish...";
+        msleep(50);
+    }
     m_stop = true;
     //exit(0);
     quit();
     wait();
+    qDebug()<<"~CPBarcode() done";
 }
 
 
@@ -64,8 +70,8 @@ ImageFormat CPBarcode::getImageFormat(const QImage& img) {
         case QImage::Format_RGBA8888: return ImageFormat::RGBX;
         case QImage::Format_Grayscale8: return ImageFormat::Lum;
         default: return ImageFormat::None;
-        }
-    };
+    }
+}
 
 
 void CPBarcode::decode(const QImage& image) {
@@ -73,15 +79,16 @@ void CPBarcode::decode(const QImage& image) {
     DecodeHints hints;
     hints.setFormats(BarcodeFormat::QRCode);
     hints.setTryRotate(true);
-    //hints.setEanAddOnSymbol(EanAddOnSymbol::Read);
+    hints.setEanAddOnSymbol(EanAddOnSymbol::Read);
     hints.setTryHarder(true);
 
     ImageView imageView{image.bits(), image.width(), image.height(), getImageFormat(image), image.bytesPerLine()};
-    decodeResults = ReadBarcodes(imageView, hints);
+    decodeResult = ReadBarcode(imageView, hints);
 
+    qDebug()<<"decode result: " << decodeResult.isValid();
     // if we did not find anything, insert a dummy to produce some output for each file
     int ret = 0;
-    if (decodeResults.empty())
+    if (!decodeResult.isValid())
         ret = -1;
 
     emit updateBarcodeDecodeResult(ret);

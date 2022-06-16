@@ -37,7 +37,7 @@ private:
     QImage image;
 
 public:
-    Results decodeResults;
+    Result decodeResult;
 };
 
 
