@@ -7,7 +7,7 @@
 
 using namespace TextUtfEncoding;
 
-CPBarcode::CPBarcode() :m_stop(false), decoding(false), decodeResult(DecodeStatus::NotFound) {
+CPBarcode::CPBarcode() :m_stop(false), decoding(false), decodeResult(DecodeStatus::NotFound), resizeFactor(1) {
 
 }
 
@@ -45,9 +45,14 @@ void CPBarcode::run() {
 }
 
 
-void CPBarcode::setImage(const QImage &image) {
+void CPBarcode::setImage(const QImage &image, float resizeFactor) {
     this->image = image;
+    this->resizeFactor = resizeFactor;
     this->decoding = true;
+}
+
+QImage CPBarcode::getImage() {
+    return this->image;
 }
 
 void CPBarcode::stop() {
@@ -76,13 +81,15 @@ ImageFormat CPBarcode::getImageFormat(const QImage& img) {
 
 void CPBarcode::decode(const QImage& image) {
     qDebug()<<"decode: "<<currentThreadId() << " image: " << image.width() << "-" << image.height() << " " << image.format();
+
+    QImage small = image.scaled(image.width()/resizeFactor, image.height()/resizeFactor);
     DecodeHints hints;
     hints.setFormats(BarcodeFormat::QRCode);
     hints.setTryRotate(true);
     hints.setEanAddOnSymbol(EanAddOnSymbol::Read);
     hints.setTryHarder(true);
 
-    ImageView imageView{image.bits(), image.width(), image.height(), getImageFormat(image), image.bytesPerLine()};
+    ImageView imageView{small.bits(), small.width(), small.height(), getImageFormat(small), small.bytesPerLine()};
     decodeResult = ReadBarcode(imageView, hints);
 
     qDebug()<<"decode result: " << decodeResult.isValid();

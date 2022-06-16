@@ -20,7 +20,8 @@ public:
 public slots:
     void stop();
     void decode(const QImage& image);
-    void setImage(const QImage &image);
+    void setImage(const QImage &image, float resizeFactor);
+    QImage getImage();
 
 signals:
     Q_SIGNAL void updateBarcodeDecodeResult(int decodeState);
@@ -38,6 +39,7 @@ private:
 
 public:
     Result decodeResult;
+    float resizeFactor;
 };
 
 
