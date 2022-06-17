@@ -41,7 +41,7 @@ void CPBarcode::run() {
             break;
         }
         if (decoding) {
-            decode(image);
+            decode(image, resizeFactor, 2, true);
             decoding = false;
         }
         //msleep(500);
@@ -63,7 +63,9 @@ QImage CPBarcode::getImage() {
 void CPBarcode::stop() {
     qDebug()<<"Thread::stop called from main thread: "<<currentThreadId();
     QMutexLocker locker(&m_mutex);
-    m_stop=true;
+    m_stop = true;
+    this->decoding = false;
+    qDebug()<<"stop end";
 }
 
 ImageFormat CPBarcode::getImageFormat(const QImage& img) {
@@ -99,19 +101,23 @@ QImage applyEffectToImage(QImage src, QGraphicsEffect *effect, int extent) {
     return res;
 }
 
-void CPBarcode::decode(const QImage& image) {
-    //qDebug()<<"decode: "<<currentThreadId() << " image: " << image.width() << "-" << image.height() << " " << image.format();
+void CPBarcode::decode(const QImage& image, float resizeFactor, int filterSize, bool useSignal) {
+    qDebug()<<"decode: "<<currentThreadId() << " image: " << image.width() << "-" << image.height() << " " << image.format();
 
     QImage small = image.scaled(image.width()/resizeFactor, image.height()/resizeFactor);
 
-    QGraphicsBlurEffect *blur = new QGraphicsBlurEffect;
-    blur->setBlurRadius(2);
-    //QImage source("://img1.png");
-    QImage result = applyEffectToImage(small, blur, 0);
-    //result.save("final.png");
+    QImage smallGray;
+    if (filterSize > 0) {
+        QGraphicsBlurEffect *blur = new QGraphicsBlurEffect;
+        blur->setBlurRadius(filterSize);
+        //QImage source("://img1.png");
+        QImage result = applyEffectToImage(small, blur, 0);
+        //result.save("final.png");
+        smallGray = result.convertToFormat(QImage::Format_Grayscale8);
+    } else {
+        smallGray = small.convertToFormat(QImage::Format_Grayscale8);
+    }
 
-
-    QImage smallGray = result.convertToFormat(QImage::Format_Grayscale8);
     DecodeHints hints;
     hints.setFormats(BarcodeFormat::QRCode);
     hints.setTryRotate(true);
@@ -121,12 +127,23 @@ void CPBarcode::decode(const QImage& image) {
     ImageView imageView{smallGray.bits(), smallGray.width(), smallGray.height(), getImageFormat(smallGray), smallGray.bytesPerLine()};
     decodeResult = ReadBarcode(imageView, hints);
 
-    //qDebug()<<"decode result: " << decodeResult.isValid();
+    qDebug()<<"decode result: " << decodeResult.isValid();
     // if we did not find anything, insert a dummy to produce some output for each file
     int ret = 0;
     if (!decodeResult.isValid())
         ret = -1;
 
-    emit updateBarcodeDecodeResult(ret);
+    if (useSignal) {
+        emit updateBarcodeDecodeResult(ret);
+    }
+}
+
+int CPBarcode::decodeImage(const QImage &image, float resizeFactor, int filterSize) {
+    decode(image, resizeFactor, filterSize, false);
+    qDebug() << "return";
+    if (!decodeResult.isValid())
+        return -1;
+    else
+        return 0;
 }
 
