@@ -44,7 +44,7 @@ void CPBarcode::run() {
             decode(image, resizeFactor, 2, true);
             decoding = false;
         }
-        //msleep(500);
+        msleep(100);
     }
     qDebug()<<"From worker thread ended: "<<currentThreadId();
 }
