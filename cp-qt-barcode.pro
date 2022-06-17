@@ -1,5 +1,5 @@
 QT -= gui
-QT += multimedia
+QT += multimedia multimediawidgets
 
 TEMPLATE = lib
 DEFINES += CPQTBARCODE_LIBRARY

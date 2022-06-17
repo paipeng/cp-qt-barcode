@@ -5,6 +5,11 @@
 #include "GTIN.h"
 #include <QDebug>
 
+#include <QGraphicsEffect>
+#include <QGraphicsScene>
+#include <QGraphicsPixmapItem>
+#include <QPainter>
+
 using namespace TextUtfEncoding;
 
 CPBarcode::CPBarcode() :m_stop(false), decoding(false), decodeResult(DecodeStatus::NotFound), resizeFactor(1) {
@@ -79,20 +84,44 @@ ImageFormat CPBarcode::getImageFormat(const QImage& img) {
 }
 
 
+QImage applyEffectToImage(QImage src, QGraphicsEffect *effect, int extent) {
+    if(src.isNull()) return QImage();   //No need to do anything else!
+    if(!effect) return src;             //No need to do anything else!
+    QGraphicsScene scene;
+    QGraphicsPixmapItem item;
+    item.setPixmap(QPixmap::fromImage(src));
+    item.setGraphicsEffect(effect);
+    scene.addItem(&item);
+    QImage res(src.size()+QSize(extent*2, extent*2), src.format());
+    res.fill(Qt::transparent);
+    QPainter ptr(&res);
+    scene.render(&ptr, QRectF(), QRectF( -extent, -extent, src.width()+extent*2, src.height()+extent*2 ) );
+    return res;
+}
+
 void CPBarcode::decode(const QImage& image) {
-    qDebug()<<"decode: "<<currentThreadId() << " image: " << image.width() << "-" << image.height() << " " << image.format();
+    //qDebug()<<"decode: "<<currentThreadId() << " image: " << image.width() << "-" << image.height() << " " << image.format();
 
     QImage small = image.scaled(image.width()/resizeFactor, image.height()/resizeFactor);
+
+    QGraphicsBlurEffect *blur = new QGraphicsBlurEffect;
+    blur->setBlurRadius(2);
+    //QImage source("://img1.png");
+    QImage result = applyEffectToImage(small, blur, 0);
+    //result.save("final.png");
+
+
+    QImage smallGray = result.convertToFormat(QImage::Format_Grayscale8);
     DecodeHints hints;
     hints.setFormats(BarcodeFormat::QRCode);
     hints.setTryRotate(true);
     hints.setEanAddOnSymbol(EanAddOnSymbol::Read);
     hints.setTryHarder(true);
 
-    ImageView imageView{small.bits(), small.width(), small.height(), getImageFormat(small), small.bytesPerLine()};
+    ImageView imageView{smallGray.bits(), smallGray.width(), smallGray.height(), getImageFormat(smallGray), smallGray.bytesPerLine()};
     decodeResult = ReadBarcode(imageView, hints);
 
-    qDebug()<<"decode result: " << decodeResult.isValid();
+    //qDebug()<<"decode result: " << decodeResult.isValid();
     // if we did not find anything, insert a dummy to produce some output for each file
     int ret = 0;
     if (!decodeResult.isValid())
